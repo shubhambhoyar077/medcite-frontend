@@ -1,0 +1,178 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+@theme {
+  /* ======================= Typography ======================= */
+  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+
+  /* =====================================================================
+     BRAND COLORS  (extracted from logo)
+     Logo green  : #3dd68c  (mint-green, top arc)
+     Logo blue   : #3b82f6  (cornflower blue, bottom-left arc)
+  ===================================================================== */
+
+  /* ── Green scale ── */
+  --color-brand-green:        #3dd68c;   /* logo green — primary accent     */
+  --color-brand-green-hover:  #2ec97d;   /* slightly darker on hover        */
+  --color-brand-green-deep:   #22b86a;   /* pressed / active                */
+  --color-brand-green-light:  #edfbf4;   /* tint for light-mode surfaces    */
+  --color-brand-green-border: #a8eece;   /* subtle border / divider         */
+  --color-brand-green-muted:  #b6f0d5;   /* light-mode code bg              */
+
+  /* ── Blue scale ── */
+  --color-brand-blue:         #3b82f6;   /* logo blue — secondary accent    */
+  --color-brand-blue-hover:   #2563eb;   /* hover                           */
+  --color-brand-blue-deep:    #1d4ed8;   /* pressed                         */
+  --color-brand-blue-light:   #eff6ff;   /* tint for light-mode surfaces    */
+  --color-brand-blue-border:  #bfdbfe;   /* subtle border                   */
+
+  /* ── Gradient (green → blue, matches logo arc flow) ── */
+  --color-brand-gradient-from:       #3dd68c;
+  --color-brand-gradient-to:         #3b82f6;
+  --color-brand-gradient-hover-from: #2ec97d;
+  --color-brand-gradient-hover-to:   #2563eb;
+
+  /* ======================= Legacy primary aliases ======================= */
+  --color-primary-main:   var(--color-brand-green);
+  --color-primary-hover:  var(--color-brand-green-hover);
+  --color-primary-deep:   var(--color-brand-green-deep);
+  --color-primary-light:  var(--color-brand-green-light);
+  --color-primary-border: var(--color-brand-green-border);
+  --color-indigo-main:    var(--color-brand-blue);
+  --color-indigo-hover:   var(--color-brand-blue-hover);
+
+  /* ======================= Status Colors ======================= */
+  --color-status-success-bg:     oklch(96.7% 0.003 264.542);
+  --color-status-success-text:   oklch(44.6% 0.03  256.802);
+  --color-status-success-border: oklch(92.8% 0.006 264.531);
+  --color-status-error-bg:       oklch(97.1% 0.013 17.38);
+  --color-status-error-text:     oklch(57.7% 0.245 27.325);
+  --color-status-error-border:   oklch(88.5% 0.062 18.334);
+  --color-status-warning-bg:     oklch(98.7% 0.026 102.212);
+  --color-status-warning-text:   oklch(68.1% 0.162  75.834);
+  --color-status-warning-border: oklch(94.5% 0.129 101.54);
+
+  /* ======================= Neutral Colors ======================= */
+  --color-neutral-text-primary:   oklch(21%   0.034 264.665);
+  --color-neutral-text-secondary: oklch(44.6% 0.03  256.802);
+  --color-neutral-text-tertiary:  oklch(55.1% 0.027 264.364);
+  --color-neutral-bg-primary:     oklch(0.99 0.00 0);
+  --color-neutral-bg-secondary:   oklch(98.5% 0.002 247.839);
+  --color-neutral-from:           var(--color-brand-green-light);
+  --color-neutral-mid:            oklch(0.99 0.00 0);
+  --color-neutral-to:             var(--color-brand-blue-light);
+  --color-neutral-border:         oklch(87.2% 0.01 258.338);
+  --color-neutral-input-border:   oklch(87.2% 0.01 258.338);
+  --color-neutral-input-focus:    var(--color-brand-green);
+  --color-neutral-input-icon:     oklch(70.7% 0.022 261.325);
+
+  /* =====================================================================
+     DARK MODE — Chat Surfaces
+     Deep navy-slate keeps the bright green + blue logo colors vivid
+  ===================================================================== */
+  --color-dark-bg-from: #0f1623;
+  --color-dark-bg-via:  #111827;
+  --color-dark-bg-to:   #0f1623;
+
+  --color-dark-surface-from: #1a2236;
+  --color-dark-surface-to:   #1e2840;
+
+  --color-dark-border: #2a3a5c;
+
+  --color-dark-text-primary:     #e5e7eb;
+  --color-dark-text-muted:       #9ca3af;
+  --color-dark-text-placeholder: #6b7280;
+
+  --color-dark-btn-disabled-bg:   #1e2840;
+  --color-dark-btn-disabled-text: #4b5a7a;
+
+  /* Inline code — green-tinted on dark */
+  --color-dark-code-bg:     rgba(61, 214, 140, 0.08);
+  --color-dark-code-text:   #3dd68c;
+  --color-dark-code-border: rgba(61, 214, 140, 0.18);
+
+  --color-dark-accent-glow: rgba(61, 214, 140, 0.22);
+
+  /* =====================================================================
+     LIGHT MODE — Chat Surfaces
+  ===================================================================== */
+  --color-light-bg-from: #f0fdf7;
+  --color-light-bg-via:  #f8fafc;
+  --color-light-bg-to:   #eff6ff;
+
+  --color-light-surface-from: rgba(255, 255, 255, 0.95);
+  --color-light-surface-to:   rgba(248, 250, 252, 0.95);
+
+  --color-light-border:       rgba(167, 220, 198, 0.4);
+  --color-light-border-solid: #a7dcc6;
+
+  --color-light-text-primary:     #0f172a;
+  --color-light-text-muted:       #475569;
+  --color-light-text-placeholder: #94a3b8;
+
+  --color-light-btn-disabled-bg:   #e8f5ee;
+  --color-light-btn-disabled-text: #a8c8b8;
+
+  --color-light-bubble-from:   #f0fdf7;
+  --color-light-bubble-to:     #e8f5ee;
+  --color-light-bubble-border: rgba(167, 220, 198, 0.35);
+
+  --color-light-code-bg:     #dcfcee;
+  --color-light-code-text:   #16a34a;
+  --color-light-code-border: rgba(61, 214, 140, 0.25);
+
+  --color-light-scroll-btn-bg:    #ffffff;
+  --color-light-scroll-btn-hover: #f0fdf7;
+}
+
+/* ======================= Base ======================= */
+body {
+  font-family: var(--font-family-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ======================= Animations ======================= */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+.animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+
+
+
+/* ======================= Scrollbar ======================= */
+/* Chrome, Edge, Safari */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: transparent;   /* hidden by default */
+    border-radius: 999px;
+    transition: background 0.3s;
+}
+
+/* show only when scrolling/hovering the container */
+:hover::-webkit-scrollbar-thumb {
+    background: #888;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;  /* hidden by default */
+    transition: scrollbar-color 0.3s;
+}
+
+*:hover {
+    scrollbar-color: #888 transparent;  /* show on hover */
+}
