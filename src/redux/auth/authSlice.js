@@ -1,6 +1,11 @@
 import { createSlice } from '@reduxjs/toolkit';
 import { authApi } from './authApi';
-import { ACCESS_TOKEN, EXPIRES_AT } from '../../constants/PreferenceKeys';
+
+/**
+ * Auth state lives entirely in Redux.
+ * Tokens live entirely in HttpOnly cookies — the browser manages them.
+ * No localStorage reads or writes anywhere in this file.
+ */
 
 const initialState = {
   user: null,
@@ -13,65 +18,47 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
+    // Use when you need to manually set user data (e.g. after SSO)
     setCredentials: (state, action) => {
-      const { user, access_token, expires_at } = action.payload;
-      state.user = user;
+      state.user = action.payload.user ?? action.payload;
       state.isAuthenticated = true;
       state.error = null;
-      
-      // Store in localStorage using your keys
-      if (access_token) {
-        localStorage.setItem(ACCESS_TOKEN, access_token);
-      }
-      if (expires_at) {
-        localStorage.setItem(EXPIRES_AT, expires_at);
-      }
     },
-    
+
+    // Clears Redux state — cookies are cleared server-side on logout
     logout: (state) => {
       state.user = null;
       state.isAuthenticated = false;
       state.error = null;
-      
-      // Clear localStorage using your keys
-      localStorage.removeItem(ACCESS_TOKEN);
-      localStorage.removeItem(EXPIRES_AT);
     },
-    
+
     updateUser: (state, action) => {
       if (state.user) {
         state.user = { ...state.user, ...action.payload };
       }
     },
-    
+
     setError: (state, action) => {
       state.error = action.payload;
     },
-    
+
     clearError: (state) => {
       state.error = null;
     },
   },
-  
+
   extraReducers: (builder) => {
-    // Login
+
+    // ── Login ──────────────────────────────────────────────────────────────
     builder.addMatcher(
       authApi.endpoints.login.matchFulfilled,
       (state, action) => {
-        const { access_token, expires_at, ...user } = action.payload;
-        state.user = user;
+        // Response body contains only safe user data — no tokens
+        state.user = action.payload;
         state.isAuthenticated = true;
         state.error = null;
-        
-        if (access_token) {
-          localStorage.setItem(ACCESS_TOKEN, access_token);
-        }
-        if (expires_at) {
-          localStorage.setItem(EXPIRES_AT, expires_at);
-        }
       }
     );
-    
     builder.addMatcher(
       authApi.endpoints.login.matchRejected,
       (state, action) => {
@@ -80,35 +67,24 @@ const authSlice = createSlice({
         state.user = null;
       }
     );
-    
-    // Token Refresh
+
+    // ── Token refresh ──────────────────────────────────────────────────────
+    // The server rotates the access cookie; we just stay authenticated.
     builder.addMatcher(
       authApi.endpoints.refreshToken.matchFulfilled,
-      (state, action) => {
-        const { access_token, expires_at, ...user } = action.payload;
-        state.user = user;
+      (state) => {
         state.isAuthenticated = true;
-        
-        if (access_token) {
-          localStorage.setItem(ACCESS_TOKEN, access_token);
-        }
-        if (expires_at) {
-          localStorage.setItem(EXPIRES_AT, expires_at);
-        }
       }
     );
-    
     builder.addMatcher(
       authApi.endpoints.refreshToken.matchRejected,
       (state) => {
         state.user = null;
         state.isAuthenticated = false;
-        localStorage.removeItem(ACCESS_TOKEN);
-        localStorage.removeItem(EXPIRES_AT);
       }
     );
-    
-    // Get Current User
+
+    // ── Get current user ───────────────────────────────────────────────────
     builder.addMatcher(
       authApi.endpoints.getCurrentUser.matchFulfilled,
       (state, action) => {
@@ -116,7 +92,6 @@ const authSlice = createSlice({
         state.isAuthenticated = true;
       }
     );
-    
     builder.addMatcher(
       authApi.endpoints.getCurrentUser.matchRejected,
       (state) => {
@@ -124,20 +99,19 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
       }
     );
-    
-    // Logout
+
+    // ── Logout ─────────────────────────────────────────────────────────────
+    // Server has already cleared both cookies in its response.
     builder.addMatcher(
       authApi.endpoints.logout.matchFulfilled,
       (state) => {
         state.user = null;
         state.isAuthenticated = false;
         state.error = null;
-        localStorage.removeItem(ACCESS_TOKEN);
-        localStorage.removeItem(EXPIRES_AT);
       }
     );
-    
-    // Update Profile
+
+    // ── Update profile ─────────────────────────────────────────────────────
     builder.addMatcher(
       authApi.endpoints.updateProfile.matchFulfilled,
       (state, action) => {
@@ -149,20 +123,20 @@ const authSlice = createSlice({
   },
 });
 
-export const { 
-  setCredentials, 
-  logout: logoutAction, 
-  updateUser, 
-  setError, 
-  clearError 
+export const {
+  setCredentials,
+  logout: logoutAction,
+  updateUser,
+  setError,
+  clearError,
 } = authSlice.actions;
 
 export default authSlice.reducer;
 
 // Selectors
-export const selectCurrentUser = (state) => state.auth.user;
-export const selectIsAuthenticated = (state) => state.auth.isAuthenticated;
-export const selectAuthError = (state) => state.auth.error;
-export const selectUserRole = (state) => state.auth.user?.role;
-export const selectUserEmail = (state) => state.auth.user?.email;
-export const selectUserFullName = (state) => state.auth.user?.full_name;
+export const selectCurrentUser      = (state) => state.auth.user;
+export const selectIsAuthenticated  = (state) => state.auth.isAuthenticated;
+export const selectAuthError        = (state) => state.auth.error;
+export const selectUserRole         = (state) => state.auth.user?.role;
+export const selectUserEmail        = (state) => state.auth.user?.email;
+export const selectUserFullName     = (state) => state.auth.user?.full_name;
