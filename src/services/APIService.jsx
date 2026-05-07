@@ -5,71 +5,68 @@ import axios from 'axios';
  * ============================================
  * API SERVICE - USAGE INSTRUCTIONS
  * ============================================
- * 
+ *
+ * Tokens (access + refresh) are stored in HttpOnly cookies set by the server.
+ * The browser sends them automatically — you never read or write them in JS.
+ * withCredentials: true is always enabled so cookies are included cross-origin.
+ *
  * 1. INITIALIZATION:
  * ------------------
  * import { APIService } from './apiService';
- * 
- * const apiService = new APIService({ 
- *   accessTokenPreferenceKey: 'auth_token' // localStorage key for your token
- * });
- * 
- * 
+ *
+ * const apiService = new APIService(); // No token key needed
+ *
+ *
  * 2. BASIC USAGE:
  * ---------------
- * 
+ *
  * // GET Request
  * const users = await apiService.get('/api/users');
- * 
+ *
  * // POST Request
  * const newUser = await apiService.post('/api/users', {
  *   body: { name: 'John', email: 'john@example.com' }
  * });
- * 
+ *
  * // PUT Request
  * const updated = await apiService.put('/api/users/123', {
  *   body: { name: 'John Updated' }
  * });
- * 
+ *
  * // PATCH Request
  * const patched = await apiService.patch('/api/users/123', {
  *   body: { email: 'newemail@example.com' }
  * });
- * 
+ *
  * // DELETE Request
  * await apiService.delete('/api/users/123');
- * 
- * 
+ *
+ *
  * 3. WITH QUERY PARAMETERS:
  * -------------------------
  * const users = await apiService.get('/api/users', {
  *   queryParams: { page: 1, limit: 10, search: 'john' }
  * });
  * // Result: /api/users?page=1&limit=10&search=john
- * 
- * 
+ *
+ *
  * 4. WITH PATH PARAMETERS:
  * ------------------------
  * const user = await apiService.get('/api/users/:id/posts/:postId', {
  *   pathParams: { id: '123', postId: '456' }
  * });
  * // Result: /api/users/123/posts/456
- * 
- * 
+ *
+ *
  * 5. WITH CUSTOM HEADERS:
  * -----------------------
  * const data = await apiService.post('/api/data', {
  *   body: { data: 'value' },
  *   headers: { 'X-Custom-Header': 'custom-value' }
  * });
- * 
- * 
- * 6. WITH CREDENTIALS (for CORS):
- * -------------------------------
- * const data = await apiService.get('/api/data', {}, true);
- * 
- * 
- * 7. FILE UPLOAD (FormData):
+ *
+ *
+ * 6. FILE UPLOAD (FormData):
  * --------------------------
  * const file = document.querySelector('input[type="file"]').files[0];
  * const response = await apiService.post('/api/upload', {
@@ -79,9 +76,9 @@ import axios from 'axios';
  *     description: 'File description'
  *   }
  * });
- * 
- * 
- * 8. ERROR HANDLING:
+ *
+ *
+ * 7. ERROR HANDLING:
  * ------------------
  * try {
  *   const data = await apiService.get('/api/users');
@@ -90,31 +87,31 @@ import axios from 'axios';
  *   console.error('Error message:', error.message);
  *   console.error('HTTP status:', error.status);
  *   console.error('Full server error:', error.cause);
- *   
- *   // Handle specific status codes
+ *
  *   if (error.status === 401) {
- *     // Handle unauthorized
+ *     // Token expired / not authenticated — redirect to login
  *   } else if (error.status === 404) {
  *     // Handle not found
  *   }
  * }
- * 
- * 
- * 9. COMBINED EXAMPLE:
+ *
+ *
+ * 8. COMBINED EXAMPLE:
  * --------------------
  * const response = await apiService.post('/api/users/:userId/posts', {
  *   pathParams: { userId: '123' },
  *   queryParams: { notify: true },
  *   body: { title: 'New Post', content: 'Post content' },
  *   headers: { 'X-Request-ID': 'abc-123' }
- * }, true);
+ * });
  * // Result: POST /api/users/123/posts?notify=true
- * 
+ *
  */
 
 
 /**
- * Get CSRF token from cookie
+ * Get CSRF token from cookie.
+ * The csrftoken cookie is NOT HttpOnly — Django intentionally allows JS to read it.
  */
 const getCsrfToken = () => {
   const name = 'csrftoken';
@@ -123,7 +120,6 @@ const getCsrfToken = () => {
     const cookies = document.cookie.split(';');
     for (let i = 0; i < cookies.length; i++) {
       const cookie = cookies[i].trim();
-      // Check if this cookie is the CSRF token
       if (cookie.substring(0, name.length + 1) === (name + '=')) {
         cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
         break;
@@ -136,19 +132,16 @@ const getCsrfToken = () => {
 
 /**
  * @typedef {Object} APIOptions
- * @property {Object} queryParams - URL query parameters
- * @property {Object} pathParams - URL path parameters to replace :param
- * @property {Object} body - Request body
- * @property {Object} headers - Custom headers
- * @property {Object} formData - Form data for file uploads
- * @property {string} accessTokenPreferenceKey - localStorage key for auth token
+ * @property {Object} queryParams  - URL query parameters
+ * @property {Object} pathParams   - URL path parameters to replace :param
+ * @property {Object} body         - Request body
+ * @property {Object} headers      - Custom headers
+ * @property {Object} formData     - Form data for file uploads
  */
 
 axios.interceptors.response.use(
   response => response,
-  error => {
-    return Promise.reject(error);
-  }
+  error => Promise.reject(error)
 );
 
 const DEFAULT_OPTIONS = {
@@ -169,18 +162,17 @@ class APIError extends Error {
 const SOMETHING_WENT_WRONG = 'Something went wrong. Please try again later';
 
 /**
- * Recursively extracts error message from nested server error objects
- * Handles various backend error formats including Django REST Framework
+ * Recursively extracts error message from nested server error objects.
+ * Handles various backend error formats including Django REST Framework.
  */
 const _formattedErrorMessage = serverError => {
   if (!serverError) return null;
-  
+
   if (typeof serverError === 'string') return serverError;
-  
+
   if (typeof serverError === 'object') {
     if (Object.keys(serverError).length === 0) return null;
-    
-    // Common error patterns from different backends
+
     const possibleErrorFields = [
       'message',
       'error',
@@ -189,72 +181,55 @@ const _formattedErrorMessage = serverError => {
       'errorMessage',
       'error_description',
       'errors',
-      'non_field_errors'  // Django REST Framework general errors
+      'non_field_errors'
     ];
-    
-    // Try each possible error field
+
     for (const field of possibleErrorFields) {
       if (serverError[field]) {
         const error = serverError[field];
-        
-        // Handle array of errors (like validation errors)
+
         if (Array.isArray(error)) {
           if (error.length > 0) {
-            // If array items are objects with message property
-            if (typeof error[0] === 'object' && error[0].message) {
-              return error[0].message;
-            }
-            // If array items are strings
-            if (typeof error[0] === 'string') {
-              return error[0];
-            }
+            if (typeof error[0] === 'object' && error[0].message) return error[0].message;
+            if (typeof error[0] === 'string') return error[0];
           }
           continue;
         }
-        
-        // Recursively process nested objects
+
         if (typeof error === 'object') {
           const nestedMessage = _formattedErrorMessage(error);
           if (nestedMessage) return nestedMessage;
         }
-        
-        // Direct string message
-        if (typeof error === 'string') {
-          return error;
-        }
+
+        if (typeof error === 'string') return error;
       }
     }
-    
+
     // Handle Django serializer field-level errors
-    // Format: {"field_name": ["error message"], "another_field": ["another error"]}
     for (const [field, error] of Object.entries(serverError)) {
-      // Skip if this is a known error structure field
       if (possibleErrorFields.includes(field)) continue;
-      
+
       if (Array.isArray(error) && error.length > 0) {
-        const errorMessage = typeof error[0] === 'string' ? error[0] : String(error[0]);
-        return errorMessage;  // Return just the error message
+        return typeof error[0] === 'string' ? error[0] : String(error[0]);
       } else if (typeof error === 'string') {
         return error;
       }
     }
   }
-  
+
   return null;
 };
 
 /**
- * Extracts and formats error information from axios error
+ * Extracts and formats error information from an axios error.
  */
 const _getErrorMessage = axiosError => {
   const response = axiosError.response;
 
-  // Default error message
   let errorMessage = axiosError?.message ?? SOMETHING_WENT_WRONG;
   let serverError = {};
   let status = null;
 
-  // Network error (no response from server)
   if (!response) {
     if (axiosError.code === 'ECONNABORTED') {
       errorMessage = 'Request timeout. Please try again.';
@@ -264,73 +239,48 @@ const _getErrorMessage = axiosError => {
     return { errorMessage, serverError, status };
   }
 
-  // Extract server error and status
   serverError = response.data;
   status = response.status;
 
-  // Try to get formatted error message from server response
   const serverErrorMessage = _formattedErrorMessage(serverError);
 
   if (serverErrorMessage) {
     errorMessage = serverErrorMessage;
   } else {
-    // Fallback to status-based messages
     switch (status) {
-      case 400:
-        errorMessage = 'Bad request. Please check your input.';
-        break;
-      case 401:
-        errorMessage = 'Unauthorized. Please login again.';
-        break;
-      case 403:
-        errorMessage = 'Access denied. You don\'t have permission.';
-        break;
-      case 404:
-        errorMessage = 'Resource not found.';
-        break;
-      case 422:
-        errorMessage = 'Validation error. Please check your input.';
-        break;
-      case 429:
-        errorMessage = 'Too many requests. Please try again later.';
-        break;
-      case 500:
-        errorMessage = 'Server error. Please try again later.';
-        break;
-      case 503:
-        errorMessage = 'Service unavailable. Please try again later.';
-        break;
-      default:
-        errorMessage = SOMETHING_WENT_WRONG;
+      case 400: errorMessage = 'Bad request. Please check your input.'; break;
+      case 401: errorMessage = 'Unauthorized. Please login again.'; break;
+      case 403: errorMessage = 'Access denied. You don\'t have permission.'; break;
+      case 404: errorMessage = 'Resource not found.'; break;
+      case 422: errorMessage = 'Validation error. Please check your input.'; break;
+      case 429: errorMessage = 'Too many requests. Please try again later.'; break;
+      case 500: errorMessage = 'Server error. Please try again later.'; break;
+      case 503: errorMessage = 'Service unavailable. Please try again later.'; break;
+      default:  errorMessage = SOMETHING_WENT_WRONG;
     }
   }
 
   return { errorMessage, serverError, status };
 };
 
+
 class APIService {
-  constructor({ accessTokenPreferenceKey }) {
-    this.accessTokenPreferenceKey = accessTokenPreferenceKey;
-  }
+  /**
+   * No constructor arguments needed.
+   * Access token is in an HttpOnly cookie — the browser handles it automatically.
+   */
+  constructor() {}
 
   /**
    * GET request
-   * @param {string} url - API endpoint
-   * @param {APIOptions} options - Request options
-   * @param {boolean} withCredentials - Include credentials for CORS
    */
-  get = async (url, options = DEFAULT_OPTIONS, withCredentials = false) => {
+  get = async (url, options = DEFAULT_OPTIONS) => {
     url = this._prepareURL(url, options);
-    const _headers = this._prepareHeaders(options);
+    const headers = this._prepareHeaders(options);
 
     try {
-      const response = await axios.get(url, { 
-        headers: _headers,
-        withCredentials: withCredentials
-      });
-      const data = await _formattedResponse(response);
-
-      return data;
+      const response = await axios.get(url, { headers, withCredentials: true });
+      return _formattedResponse(response);
     } catch (e) {
       const { errorMessage, serverError, status } = _getErrorMessage(e);
       throw new APIError(errorMessage, serverError, status);
@@ -339,30 +289,15 @@ class APIService {
 
   /**
    * POST request
-   * @param {string} url - API endpoint
-   * @param {APIOptions} options - Request options
-   * @param {boolean} withCredentials - Include credentials for CORS
    */
-  post = async (url, options = DEFAULT_OPTIONS, withCredentials = false) => {
+  post = async (url, options = DEFAULT_OPTIONS) => {
     url = this._prepareURL(url, options);
-    const _headers = this._prepareHeaders(options, 'POST');
-    
-    if (options.formData && Object.keys(options.formData).length) {
-      const data = new FormData();
-      Object.keys(options.formData).forEach(item => {
-        data.append(item, options.formData[item]);
-      });
-      options.body = data;
-    }
-    
-    try {
-      const response = await axios.post(url, options.body, {
-        headers: _headers,
-        withCredentials: withCredentials
-      });
-      const data = await _formattedResponse(response);
+    const headers = this._prepareHeaders(options, 'POST');
+    const body = this._prepareBody(options);
 
-      return data;
+    try {
+      const response = await axios.post(url, body, { headers, withCredentials: true });
+      return _formattedResponse(response);
     } catch (e) {
       const { errorMessage, serverError, status } = _getErrorMessage(e);
       throw new APIError(errorMessage, serverError, status);
@@ -371,30 +306,15 @@ class APIService {
 
   /**
    * PUT request
-   * @param {string} url - API endpoint
-   * @param {APIOptions} options - Request options
-   * @param {boolean} withCredentials - Include credentials for CORS
    */
-  put = async (url, options = DEFAULT_OPTIONS, withCredentials = false) => {
+  put = async (url, options = DEFAULT_OPTIONS) => {
     url = this._prepareURL(url, options);
-    const _headers = this._prepareHeaders(options, 'PUT');
-
-    if (options.formData && Object.keys(options.formData).length) {
-      const data = new FormData();
-      Object.keys(options.formData).forEach(item => {
-        data.append(item, options.formData[item]);
-      });
-      options.body = data;
-    }
+    const headers = this._prepareHeaders(options, 'PUT');
+    const body = this._prepareBody(options);
 
     try {
-      const response = await axios.put(url, options.body, {
-        headers: _headers,
-        withCredentials: withCredentials
-      });
-      const data = await _formattedResponse(response);
-
-      return data;
+      const response = await axios.put(url, body, { headers, withCredentials: true });
+      return _formattedResponse(response);
     } catch (e) {
       const { errorMessage, serverError, status } = _getErrorMessage(e);
       throw new APIError(errorMessage, serverError, status);
@@ -403,30 +323,15 @@ class APIService {
 
   /**
    * PATCH request
-   * @param {string} url - API endpoint
-   * @param {APIOptions} options - Request options
-   * @param {boolean} withCredentials - Include credentials for CORS
    */
-  patch = async (url, options = DEFAULT_OPTIONS, withCredentials = false) => {
+  patch = async (url, options = DEFAULT_OPTIONS) => {
     url = this._prepareURL(url, options);
-    const _headers = this._prepareHeaders(options, 'PATCH');
-
-    if (options.formData && Object.keys(options.formData).length) {
-      const data = new FormData();
-      Object.keys(options.formData).forEach(item => {
-        data.append(item, options.formData[item]);
-      });
-      options.body = data;
-    }
+    const headers = this._prepareHeaders(options, 'PATCH');
+    const body = this._prepareBody(options);
 
     try {
-      const response = await axios.patch(url, options.body, {
-        headers: _headers,
-        withCredentials: withCredentials
-      });
-      const data = await _formattedResponse(response);
-
-      return data;
+      const response = await axios.patch(url, body, { headers, withCredentials: true });
+      return _formattedResponse(response);
     } catch (e) {
       const { errorMessage, serverError, status } = _getErrorMessage(e);
       throw new APIError(errorMessage, serverError, status);
@@ -435,80 +340,73 @@ class APIService {
 
   /**
    * DELETE request
-   * @param {string} url - API endpoint
-   * @param {APIOptions} options - Request options
-   * @param {boolean} withCredentials - Include credentials for CORS
    */
-  delete = async (url, options = DEFAULT_OPTIONS, withCredentials = false) => {
+  delete = async (url, options = DEFAULT_OPTIONS) => {
     url = this._prepareURL(url, options);
-    const _headers = this._prepareHeaders(options, 'DELETE');
+    const headers = this._prepareHeaders(options, 'DELETE');
 
     try {
-      const response = await axios.delete(url, { 
-        headers: _headers,
-        withCredentials: withCredentials 
-      });
-      const data = await _formattedResponse(response);
-
-      return data;
+      const response = await axios.delete(url, { headers, withCredentials: true });
+      return _formattedResponse(response);
     } catch (e) {
       const { errorMessage, serverError, status } = _getErrorMessage(e);
       throw new APIError(errorMessage, serverError, status);
     }
   };
 
+  // ─── Private helpers ──────────────────────────────────────────────────────
+
   /**
-   * Prepares URL with path and query parameters
+   * Replaces :param placeholders and appends query string.
    * @private
    */
   _prepareURL = (url, options = DEFAULT_OPTIONS) => {
     const { queryParams = {}, pathParams = {} } = options;
 
-    // Replace path parameters
     Object.entries(pathParams).forEach(([k, v]) => {
       url = url.replaceAll(`:${k}`, v);
     });
 
-    // Add query parameters
-    const params = new URLSearchParams(queryParams);
-    const qp = params.toString();
-
-    if (qp) {
-      url = url + `?${qp}`;
-    }
+    const qp = new URLSearchParams(queryParams).toString();
+    if (qp) url = `${url}?${qp}`;
 
     return url;
   };
 
   /**
-   * Prepares request headers with authorization token
+   * Builds headers.
+   * No Authorization header — the access token travels as an HttpOnly cookie.
+   * CSRF token is still read from the csrftoken cookie (which IS JS-readable).
    * @private
    */
   _prepareHeaders = (options = DEFAULT_OPTIONS, method = 'GET') => {
-    const token = localStorage.getItem(this.accessTokenPreferenceKey);
-    const headers = {
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...(options?.headers || {})
-    };
-    
-    // 🆕 NEW: Add CSRF token for unsafe methods
+    const headers = { ...(options?.headers || {}) };
+
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
       const csrfToken = getCsrfToken();
-      if (csrfToken) {
-        headers['X-CSRFToken'] = csrfToken;
-      }
+      if (csrfToken) headers['X-CSRFToken'] = csrfToken;
     }
-    
+
     return headers;
+  };
+
+  /**
+   * Converts formData option into a FormData object, or returns plain body.
+   * @private
+   */
+  _prepareBody = (options = DEFAULT_OPTIONS) => {
+    if (options.formData && Object.keys(options.formData).length) {
+      const fd = new FormData();
+      Object.keys(options.formData).forEach(key => fd.append(key, options.formData[key]));
+      return fd;
+    }
+    return options.body;
   };
 }
 
 /**
- * Formats axios response to return data
- * @private
+ * Unwraps axios response to just the data payload.
  */
-const _formattedResponse = async response => {
-  return response.data;
-};
+const _formattedResponse = response => response.data;
 
 export { APIService, APIError };
